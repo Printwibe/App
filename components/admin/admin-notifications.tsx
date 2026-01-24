@@ -1,68 +1,102 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Bell, X, Check } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect, useRef } from "react";
+import { Bell, X, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
-import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast-hook"
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast-hook";
 
 interface Notification {
-  _id: string
-  type: "new_order" | "order_cancelled" | "customized_order"
-  title: string
-  message: string
-  orderId: string
-  orderNumber: string
-  isRead: boolean
-  createdAt: string
+  _id: string;
+  type: "new_order" | "order_cancelled" | "customized_order";
+  title: string;
+  message: string;
+  orderId: string;
+  orderNumber: string;
+  isRead: boolean;
+  createdAt: string;
 }
 
 export function AdminNotifications() {
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [open, setOpen] = useState(false)
-  const [lastNotificationId, setLastNotificationId] = useState<string | null>(null)
-  const router = useRouter()
-  const { addToast } = useToast()
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [open, setOpen] = useState(false);
+  const [lastNotificationId, setLastNotificationId] = useState<string | null>(
+    null
+  );
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const router = useRouter();
+  const { addToast } = useToast();
 
-  const fetchNotifications = async () => {
-    try {
-      const res = await fetch("/api/v1/admin/notifications")
-      if (res.ok) {
-        const data = await res.json()
-        setNotifications(data.notifications)
-        setUnreadCount(data.unreadCount)
-        
-        // Show toast for new notifications
-        if (data.notifications.length > 0 && data.notifications[0]._id !== lastNotificationId) {
-          const latestNotification = data.notifications[0]
-          if (!latestNotification.isRead) {
-            setLastNotificationId(latestNotification._id)
-            
-            // Show toast notification
-            addToast(latestNotification.title, "info")
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch notifications:", error)
-    }
-  }
-
+  // Connect to SSE stream when panel opens
   useEffect(() => {
-    fetchNotifications()
-    
-    // Poll for new notifications every 10 seconds
-    const interval = setInterval(fetchNotifications, 10000)
-    
-    return () => clearInterval(interval)
-  }, [lastNotificationId])
+    if (open && !eventSourceRef.current) {
+      connectToNotificationStream();
+    } else if (!open && eventSourceRef.current) {
+      disconnectFromNotificationStream();
+    }
+
+    return () => {
+      if (eventSourceRef.current && !open) {
+        disconnectFromNotificationStream();
+      }
+    };
+  }, [open]);
+
+  const connectToNotificationStream = () => {
+    try {
+      const eventSource = new EventSource("/api/v1/admin/notifications/stream");
+
+      eventSource.addEventListener("message", (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          if (data.type === "initial") {
+            // Load initial notifications
+            setNotifications(data.notifications);
+            setUnreadCount(data.unreadCount);
+          } else if (data.type === "new_notification") {
+            // New notification arrived
+            setNotifications((prev) => [...data.notifications, ...prev]);
+            setUnreadCount(data.unreadCount);
+
+            // Show toast for new notifications
+            if (data.notifications.length > 0) {
+              const newNotif = data.notifications[0];
+              if (newNotif._id !== lastNotificationId) {
+                setLastNotificationId(newNotif._id);
+                addToast(newNotif.title, "info");
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error parsing notification data:", error);
+        }
+      });
+
+      eventSource.addEventListener("error", (error) => {
+        console.error("SSE connection error:", error);
+        disconnectFromNotificationStream();
+      });
+
+      eventSourceRef.current = eventSource;
+    } catch (error) {
+      console.error("Failed to connect to notification stream:", error);
+    }
+  };
+
+  const disconnectFromNotificationStream = () => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+  };
 
   const handleNotificationClick = async (notification: Notification) => {
     // Mark as read
@@ -72,54 +106,58 @@ export function AdminNotifications() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "mark-read",
-          notificationId: notification._id
-        })
-      })
+          notificationId: notification._id,
+        }),
+      });
     }
-    
+
     // Navigate to order detail
-    setOpen(false)
-    router.push(`/v1/admin/orders/${notification.orderNumber}`)
-  }
+    setOpen(false);
+    router.push(`/v1/admin/orders/${notification.orderNumber}`);
+  };
 
   const handleMarkAllAsRead = async () => {
     try {
       await fetch("/api/v1/admin/notifications", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "mark-all-read" })
-      })
-      fetchNotifications()
+        body: JSON.stringify({ action: "mark-all-read" }),
+      });
+      // Reconnect to get updated data
+      if (eventSourceRef.current) {
+        disconnectFromNotificationStream();
+        connectToNotificationStream();
+      }
     } catch (error) {
-      console.error("Failed to mark all as read:", error)
+      console.error("Failed to mark all as read:", error);
     }
-  }
+  };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case "new_order":
-        return "🛒"
+        return "🛒";
       case "customized_order":
-        return "🎨"
+        return "🎨";
       case "order_cancelled":
-        return "❌"
+        return "❌";
       default:
-        return "📢"
+        return "📢";
     }
-  }
+  };
 
   const getNotificationColor = (type: string) => {
     switch (type) {
       case "new_order":
-        return "bg-green-50 border-green-200"
+        return "bg-green-50 border-green-200";
       case "customized_order":
-        return "bg-blue-50 border-blue-200"
+        return "bg-blue-50 border-blue-200";
       case "order_cancelled":
-        return "bg-red-50 border-red-200"
+        return "bg-red-50 border-red-200";
       default:
-        return "bg-gray-50 border-gray-200"
+        return "bg-gray-50 border-gray-200";
     }
-  }
+  };
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -127,7 +165,7 @@ export function AdminNotifications() {
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <Badge 
+            <Badge
               className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 text-white text-xs"
               variant="destructive"
             >
@@ -140,9 +178,9 @@ export function AdminNotifications() {
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="font-semibold">Notifications</h3>
           {unreadCount > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleMarkAllAsRead}
               className="text-xs h-7"
             >
@@ -151,7 +189,7 @@ export function AdminNotifications() {
             </Button>
           )}
         </div>
-        
+
         <div className="max-h-[400px] overflow-y-auto">
           {notifications.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
@@ -169,12 +207,20 @@ export function AdminNotifications() {
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex items-start gap-3">
-                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg border ${getNotificationColor(notification.type)}`}>
+                    <div
+                      className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg border ${getNotificationColor(
+                        notification.type
+                      )}`}
+                    >
                       {getNotificationIcon(notification.type)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
-                        <p className={`text-sm font-medium ${!notification.isRead ? "text-primary" : ""}`}>
+                        <p
+                          className={`text-sm font-medium ${
+                            !notification.isRead ? "text-primary" : ""
+                          }`}
+                        >
                           {notification.title}
                         </p>
                         {!notification.isRead && (
@@ -185,12 +231,15 @@ export function AdminNotifications() {
                         {notification.message}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(notification.createdAt).toLocaleString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit"
-                        })}
+                        {new Date(notification.createdAt).toLocaleString(
+                          "en-IN",
+                          {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
                       </p>
                     </div>
                   </div>
@@ -201,5 +250,5 @@ export function AdminNotifications() {
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }
