@@ -1,60 +1,71 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
-import Link from "next/link"
-import Image from "next/image"
-import { Header } from "@/components/layout/header"
-import { Footer } from "@/components/layout/footer"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, Package, ArrowRight, MapPin, CreditCard, Loader2, Download, Sparkles, Clock, Home } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { useCurrency } from "@/hooks/use-currency"
-import { Separator } from "@/components/ui/separator"
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import { Header } from "@/components/layout/header";
+import { Footer } from "@/components/layout/footer";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  CheckCircle,
+  Package,
+  ArrowRight,
+  MapPin,
+  CreditCard,
+  Loader2,
+  Download,
+  Sparkles,
+  Clock,
+  Home,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useCurrency } from "@/hooks/use-currency";
+import { Separator } from "@/components/ui/separator";
 
-export default function OrderSuccessPage() {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const orderId = searchParams.get('orderId')
-  const [order, setOrder] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const { symbol: currencySymbol } = useCurrency()
+function OrderSuccessContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const orderId = searchParams.get("orderId");
+  const [order, setOrder] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { symbol: currencySymbol } = useCurrency();
 
   useEffect(() => {
     if (orderId) {
-      fetchOrderDetails()
+      fetchOrderDetails();
     } else {
-      router.push('/products')
+      router.push("/products");
     }
-  }, [orderId])
+  }, [orderId]);
 
   const fetchOrderDetails = async () => {
     try {
-      const res = await fetch(`/api/user/orders/${orderId}`)
+      const res = await fetch(`/api/user/orders/${orderId}`);
       if (res.ok) {
-        const data = await res.json()
-        setOrder(data)
-        
+        const data = await res.json();
+        setOrder(data);
+
         // Clear customization data from sessionStorage after successful order
-        if (typeof window !== 'undefined' && window.sessionStorage) {
+        if (typeof window !== "undefined" && window.sessionStorage) {
           // Clear all customization-related data
           const keysToRemove = [
-            'customization-data',
-            'editing-cart-item-index',
-            'cart-status'
-          ]
-          keysToRemove.forEach(key => {
-            sessionStorage.removeItem(key)
-          })
+            "customization-data",
+            "editing-cart-item-index",
+            "cart-status",
+          ];
+          keysToRemove.forEach((key) => {
+            sessionStorage.removeItem(key);
+          });
         }
       }
     } catch (error) {
-      console.error("Failed to fetch order details:", error)
+      console.error("Failed to fetch order details:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   if (isLoading) {
     return (
@@ -68,10 +79,12 @@ export default function OrderSuccessPage() {
         </main>
         <Footer />
       </div>
-    )
+    );
   }
 
-  const hasCustomizedItems = order?.items?.some((item: any) => item.isCustomized)
+  const hasCustomizedItems = order?.items?.some(
+    (item: any) => item.isCustomized
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-green-50/50 to-background dark:from-green-950/10">
@@ -82,7 +95,10 @@ export default function OrderSuccessPage() {
           <div className="text-center space-y-6 py-8">
             <div className="relative inline-block">
               <div className="w-24 h-24 mx-auto bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-lg animate-in zoom-in duration-500">
-                <CheckCircle className="h-14 w-14 text-white" strokeWidth={2.5} />
+                <CheckCircle
+                  className="h-14 w-14 text-white"
+                  strokeWidth={2.5}
+                />
               </div>
               <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center animate-bounce">
                 <Sparkles className="h-5 w-5 text-yellow-900" />
@@ -94,15 +110,20 @@ export default function OrderSuccessPage() {
                 Order Placed Successfully!
               </h1>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Thank you for your purchase! We're excited to create your {hasCustomizedItems && 'custom '}products.
-                You'll receive a confirmation email shortly.
+                Thank you for your purchase! We're excited to create your{" "}
+                {hasCustomizedItems && "custom "}products. You'll receive a
+                confirmation email shortly.
               </p>
             </div>
 
             <Card className="inline-block border-2 border-green-200 bg-white/50 dark:bg-gray-900/50 backdrop-blur">
               <CardContent className="p-6">
-                <p className="text-sm text-muted-foreground mb-2">Order Number</p>
-                <p className="font-mono font-bold text-lg text-green-600">{orderId}</p>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Order Number
+                </p>
+                <p className="font-mono font-bold text-lg text-green-600">
+                  {orderId}
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -118,17 +139,22 @@ export default function OrderSuccessPage() {
                         <Sparkles className="h-6 w-6 text-primary" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-1">Custom Design Order</h3>
+                        <h3 className="font-semibold text-lg mb-1">
+                          Custom Design Order
+                        </h3>
                         <p className="text-sm text-muted-foreground mb-3">
-                          Your custom designs have been submitted to our production team. 
-                          We'll review your artwork and start production within 24 hours.
+                          Your custom designs have been submitted to our
+                          production team. We'll review your artwork and start
+                          production within 24 hours.
                         </p>
                         <div className="flex flex-wrap gap-2">
                           <Badge variant="secondary" className="gap-1">
                             <Clock className="h-3 w-3" />
                             Production starts in 24h
                           </Badge>
-                          <Badge variant="secondary">Quality Check Included</Badge>
+                          <Badge variant="secondary">
+                            Quality Check Included
+                          </Badge>
                         </div>
                       </div>
                     </div>
@@ -152,7 +178,9 @@ export default function OrderSuccessPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-sm">Order Placed</p>
-                        <p className="text-xs text-muted-foreground">Just now</p>
+                        <p className="text-xs text-muted-foreground">
+                          Just now
+                        </p>
                       </div>
                     </div>
                     <div className="text-center space-y-2">
@@ -160,8 +188,12 @@ export default function OrderSuccessPage() {
                         <Package className="h-6 w-6 text-muted-foreground" />
                       </div>
                       <div>
-                        <p className="font-semibold text-sm">{hasCustomizedItems ? 'Production' : 'Processing'}</p>
-                        <p className="text-xs text-muted-foreground">{hasCustomizedItems ? '1-2 days' : '0-1 day'}</p>
+                        <p className="font-semibold text-sm">
+                          {hasCustomizedItems ? "Production" : "Processing"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {hasCustomizedItems ? "1-2 days" : "0-1 day"}
+                        </p>
                       </div>
                     </div>
                     <div className="text-center space-y-2">
@@ -170,7 +202,9 @@ export default function OrderSuccessPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-sm">Shipped</p>
-                        <p className="text-xs text-muted-foreground">{hasCustomizedItems ? '3-4 days' : '2-3 days'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {hasCustomizedItems ? "3-4 days" : "2-3 days"}
+                        </p>
                       </div>
                     </div>
                     <div className="text-center space-y-2">
@@ -179,7 +213,9 @@ export default function OrderSuccessPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-sm">Delivered</p>
-                        <p className="text-xs text-muted-foreground">{hasCustomizedItems ? '5-7 days' : '3-5 days'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {hasCustomizedItems ? "5-7 days" : "3-5 days"}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -194,9 +230,11 @@ export default function OrderSuccessPage() {
                       <Package className="h-7 w-7 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Order Status</p>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Order Status
+                      </p>
                       <Badge variant="default" className="text-sm px-3 py-1">
-                        {order.orderStatus || 'Processing'}
+                        {order.orderStatus || "Processing"}
                       </Badge>
                     </div>
                   </CardContent>
@@ -207,12 +245,16 @@ export default function OrderSuccessPage() {
                       <CreditCard className="h-7 w-7 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Payment Method</p>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Payment Method
+                      </p>
                       <p className="font-semibold">
-                        {order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Paid Online'}
+                        {order.paymentMethod === "cod"
+                          ? "Cash on Delivery"
+                          : "Paid Online"}
                       </p>
                       <Badge variant="secondary" className="mt-1 text-xs">
-                        {order.paymentStatus || 'Pending'}
+                        {order.paymentStatus || "Pending"}
                       </Badge>
                     </div>
                   </CardContent>
@@ -223,8 +265,12 @@ export default function OrderSuccessPage() {
                       <Clock className="h-7 w-7 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Estimated Delivery</p>
-                      <p className="font-semibold">{hasCustomizedItems ? '5-7' : '3-5'} Business Days</p>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Estimated Delivery
+                      </p>
+                      <p className="font-semibold">
+                        {hasCustomizedItems ? "5-7" : "3-5"} Business Days
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
@@ -243,7 +289,10 @@ export default function OrderSuccessPage() {
                   <CardContent>
                     <div className="space-y-4">
                       {order.items?.map((item: any, index: number) => (
-                        <div key={index} className="flex gap-4 p-3 rounded-lg border bg-card/50 hover:bg-card transition-colors">
+                        <div
+                          key={index}
+                          className="flex gap-4 p-3 rounded-lg border bg-card/50 hover:bg-card transition-colors"
+                        >
                           <div className="relative w-20 h-20 rounded-md overflow-hidden bg-muted shrink-0">
                             <Image
                               src={item.productImage || "/placeholder.svg"}
@@ -259,10 +308,16 @@ export default function OrderSuccessPage() {
                             )}
                           </div>
                           <div className="flex-1 min-w-0 space-y-1">
-                            <p className="font-medium line-clamp-2 text-sm">{item.name}</p>
+                            <p className="font-medium line-clamp-2 text-sm">
+                              {item.name}
+                            </p>
                             <div className="flex flex-wrap gap-2">
-                              <Badge variant="outline" className="text-xs">{item.variant?.size}</Badge>
-                              <Badge variant="outline" className="text-xs">{item.variant?.color}</Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {item.variant?.size}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {item.variant?.color}
+                              </Badge>
                               {item.isCustomized && (
                                 <Badge className="text-xs gap-1">
                                   <Sparkles className="h-2.5 w-2.5" />
@@ -271,9 +326,16 @@ export default function OrderSuccessPage() {
                               )}
                             </div>
                             <div className="flex justify-between items-center pt-1">
-                              <span className="text-xs text-muted-foreground">Quantity: {item.quantity}</span>
+                              <span className="text-xs text-muted-foreground">
+                                Quantity: {item.quantity}
+                              </span>
                               <span className="font-semibold text-sm">
-                                {currencySymbol}{((item.unitPrice + (item.customizationFee || 0)) * item.quantity).toFixed(2)}
+                                {currencySymbol}
+                                {(
+                                  (item.unitPrice +
+                                    (item.customizationFee || 0)) *
+                                  item.quantity
+                                ).toFixed(2)}
                               </span>
                             </div>
                           </div>
@@ -295,12 +357,20 @@ export default function OrderSuccessPage() {
                     {order.shippingAddress && (
                       <div className="space-y-3">
                         <div className="p-4 rounded-lg bg-muted/50 space-y-2">
-                          <p className="font-semibold">{order.shippingAddress.house}</p>
-                          <p className="text-sm text-muted-foreground">{order.shippingAddress.street}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.postalCode}
+                          <p className="font-semibold">
+                            {order.shippingAddress.house}
                           </p>
-                          <p className="text-sm font-medium">{order.shippingAddress.country}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {order.shippingAddress.street}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {order.shippingAddress.city},{" "}
+                            {order.shippingAddress.state} -{" "}
+                            {order.shippingAddress.postalCode}
+                          </p>
+                          <p className="text-sm font-medium">
+                            {order.shippingAddress.country}
+                          </p>
                         </div>
                         {order.shippingAddress.phone && (
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -323,17 +393,25 @@ export default function OrderSuccessPage() {
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Subtotal</span>
-                      <span className="font-medium">{currencySymbol}{order.subtotal?.toFixed(2)}</span>
+                      <span className="font-medium">
+                        {currencySymbol}
+                        {order.subtotal?.toFixed(2)}
+                      </span>
                     </div>
                     {order.shipping > 0 ? (
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Shipping</span>
-                        <span className="font-medium">{currencySymbol}{order.shipping?.toFixed(2)}</span>
+                        <span className="font-medium">
+                          {currencySymbol}
+                          {order.shipping?.toFixed(2)}
+                        </span>
                       </div>
                     ) : (
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Shipping</span>
-                        <Badge variant="secondary" className="text-xs">FREE</Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          FREE
+                        </Badge>
                       </div>
                     )}
                     {order.discount > 0 && (
@@ -341,13 +419,21 @@ export default function OrderSuccessPage() {
                         <span className="text-green-600 font-medium">
                           Discount {order.promoCode && `(${order.promoCode})`}
                         </span>
-                        <span className="text-green-600 font-semibold">-{currencySymbol}{order.discount?.toFixed(2)}</span>
+                        <span className="text-green-600 font-semibold">
+                          -{currencySymbol}
+                          {order.discount?.toFixed(2)}
+                        </span>
                       </div>
                     )}
                     <Separator />
                     <div className="flex justify-between items-center pt-2">
-                      <span className="font-semibold text-lg">Total Amount</span>
-                      <span className="font-bold text-2xl text-primary">{currencySymbol}{order.total?.toFixed(2)}</span>
+                      <span className="font-semibold text-lg">
+                        Total Amount
+                      </span>
+                      <span className="font-bold text-2xl text-primary">
+                        {currencySymbol}
+                        {order.total?.toFixed(2)}
+                      </span>
                     </div>
                   </div>
                 </CardContent>
@@ -383,7 +469,10 @@ export default function OrderSuccessPage() {
               <p className="text-sm font-medium">Need Help with Your Order?</p>
               <p className="text-sm text-muted-foreground">
                 Our support team is here to help! Contact us at{" "}
-                <a href="mailto:contact@printwibe.com" className="text-primary hover:underline font-semibold">
+                <a
+                  href="mailto:contact@printwibe.com"
+                  className="text-primary hover:underline font-semibold"
+                >
                   contact@printwibe.com
                 </a>
               </p>
@@ -393,5 +482,23 @@ export default function OrderSuccessPage() {
       </main>
       <Footer />
     </div>
-  )
+  );
+}
+export default function OrderSuccessPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <OrderSuccessContent />
+    </Suspense>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+        <p>Loading order details...</p>
+      </div>
+    </div>
+  );
 }
