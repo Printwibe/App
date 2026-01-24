@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 const categories = [
   { value: "t-shirt", label: "T-Shirts" },
@@ -38,46 +39,57 @@ export function ProductFilters({ currentCategory, currentCustomizable }: Product
     router.push("/products")
   }
 
+  const hasActiveFilters = currentCategory || currentCustomizable
+
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="font-medium mb-4">Categories</h3>
-        <div className="space-y-3">
-          {categories.map((category) => (
-            <button
-              key={category.value}
-              onClick={() => updateFilter("category", currentCategory === category.value ? null : category.value)}
-              className={`block w-full text-left text-sm py-1 transition-colors ${
-                currentCategory === category.value
-                  ? "text-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {category.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Filters</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <h3 className="font-medium mb-3 text-sm">Categories</h3>
+            <div className="space-y-2">
+              {categories.map((category) => (
+                <button
+                  key={category.value}
+                  onClick={() => updateFilter("category", currentCategory === category.value ? null : category.value)}
+                  className={`block w-full text-left text-sm px-3 py-2 rounded-md transition-colors ${
+                    currentCategory === category.value
+                      ? "bg-accent text-accent-foreground font-medium"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  }`}
+                >
+                  {category.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      <div className="border-t border-border pt-6">
-        <h3 className="font-medium mb-4">Options</h3>
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="customizable"
-            checked={currentCustomizable === "true"}
-            onCheckedChange={(checked) => updateFilter("customizable", checked ? "true" : null)}
-          />
-          <Label htmlFor="customizable" className="text-sm cursor-pointer">
-            Customizable only
-          </Label>
-        </div>
-      </div>
+          <div className="border-t border-border pt-4">
+            <h3 className="font-medium mb-3 text-sm">Options</h3>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="customizable"
+                checked={currentCustomizable === "true"}
+                onCheckedChange={(checked) => updateFilter("customizable", checked ? "true" : null)}
+              />
+              <Label htmlFor="customizable" className="text-sm cursor-pointer">
+                Customizable only
+              </Label>
+            </div>
+          </div>
 
-      {(currentCategory || currentCustomizable) && (
-        <Button variant="outline" size="sm" onClick={clearFilters} className="w-full bg-transparent">
-          Clear filters
-        </Button>
-      )}
+          {hasActiveFilters && (
+            <div className="border-t border-border pt-4">
+              <Button variant="outline" size="sm" onClick={clearFilters} className="w-full">
+                Clear all filters
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

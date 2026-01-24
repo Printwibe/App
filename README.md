@@ -106,6 +106,85 @@ printwibe/
 
 ---
 
+## Architecture & Design
+
+### System Overview
+
+PrintWibe is a full-stack e-commerce platform with the following key characteristics:
+
+**Architecture Pattern:**
+- **Frontend:** Next.js 15 App Router (Server-first architecture)
+- **Backend:** Next.js API Routes (serverless functions)
+- **Database:** MongoDB (document-based, native driver)
+- **Authentication:** JWT-based with HTTP-only cookies
+- **File Storage:** Vercel Blob (cloud storage)
+- **Payment Gateway:** Razorpay integration
+
+**Key Design Decisions:**
+
+1. **Dual Authentication System**: Separate JWT tokens and collections for users (`users` collection, `auth-token` cookie) and admins (`admins` collection, `admin-token` cookie). This ensures complete isolation between customer and admin access.
+
+2. **Server Components First**: Leverages Next.js 15 Server Components for direct database access and better performance. Client components (`"use client"`) only used for interactivity.
+
+3. **API Route Pattern**: RESTful API design with consistent response formats:
+   - User endpoints: `/api/*`
+   - Admin endpoints: `/api/v1/admin/*`
+
+4. **Type Safety**: Full TypeScript coverage with centralized type definitions in `lib/models/types.ts`.
+
+5. **Component Organization**: shadcn/ui for reusable UI primitives, custom components for business logic.
+
+### Authentication Flow
+
+**User Authentication:**
+1. User registers via `/api/auth/register` → password hashed with bcryptjs
+2. User logs in via `/api/auth/login` → JWT generated with `JWT_SECRET`
+3. JWT stored in HTTP-only cookie named `auth-token`
+4. Protected routes check cookie via `middleware.ts`
+5. API routes verify token using `getCurrentUser()` from `lib/auth.ts`
+
+**Admin Authentication (Separate):**
+1. Admin logs in via `/api/v1/admin/auth/login`
+2. Credentials checked against `admins` collection (not `users`)
+3. JWT generated with `ADMIN_JWT_SECRET`
+4. JWT stored in HTTP-only cookie named `admin-token`
+5. Admin routes check cookie and verify using `getCurrentAdmin()`
+
+**Route Protection (middleware.ts):**
+- `/profile/*` → requires `auth-token`
+- `/checkout/*` → requires `auth-token`
+- `/v1/admin/*` → requires `admin-token` (except login page)
+- `/login`, `/register` → redirect if already logged in
+
+### Payment Integration
+
+**Razorpay Flow:**
+1. User selects payment method at checkout
+2. If Razorpay: POST to `/api/payments/razorpay` creates order
+3. Client loads Razorpay SDK with order ID
+4. User completes payment on Razorpay modal
+5. Success: Create order with `paymentStatus: "paid"` and `razorpayPaymentId`
+6. Order confirmation page shown
+
+**Cash on Delivery (COD):**
+1. User selects COD at checkout
+2. Order created immediately with `paymentStatus: "pending"`
+3. Order confirmation page shown
+4. Admin updates payment status upon delivery
+
+### File Upload Flow
+
+1. User selects product with custom design option
+2. File selected via `<input type="file">`
+3. Client-side validation: type (PNG/JPG/JPEG/SVG), size (max 5MB)
+4. POST to `/api/upload` with FormData
+5. Server validates and uploads to Vercel Blob
+6. Metadata stored in `customDesigns` collection
+7. Design ID associated with cart item
+8. Design URL included in order details
+
+---
+
 ## API Routes
 
 ### User Authentication
@@ -390,6 +469,25 @@ Add all variables from \`.env.example\` to your Vercel project settings:
 - \`NEXT_PUBLIC_APP_NAME\`
 - \`ADMIN_EMAIL\`
 - \`RESEND_API_KEY\` (optional)
+
+---
+
+## Developer Documentation
+
+For detailed development guidelines, code patterns, and best practices, see:
+
+📚 **[Developer Guide](.github/DEVELOPMENT.md)** - Comprehensive development documentation
+- Architecture deep dive
+- Database operations
+- Authentication patterns
+- API development
+- Component patterns
+- File uploads & payments
+- Troubleshooting
+
+📋 **[Quick Reference](.github/CHEATSHEET.md)** - Code snippets and common patterns
+
+🤖 **[AI Agent Instructions](.github/copilot-instructions.md)** - Guidelines for AI-assisted development
 
 ---
 

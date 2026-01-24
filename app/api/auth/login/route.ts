@@ -1,17 +1,37 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import { verifyPassword, generateToken } from "@/lib/auth"
-import type { User } from "@/lib/models/types"
+import type { User } from "@/lib/types"
 import { cookies } from "next/headers"
+import { validateRequestBody } from "@/lib/validate"
+import { loginSchema } from "@/lib/validations"
+import { checkRateLimit, getIdentifier, rateLimits, getRateLimitHeaders } from "@/lib/rate-limit"
+import { logError, logWarning } from "@/lib/logger"
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { email, password } = body
-
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
+    // Rate limiting
+    const identifier = getIdentifier(request)
+    const rateLimit = checkRateLimit(identifier, rateLimits.auth)
+    
+    if (!rateLimit.allowed) {
+      logWarning("Rate limit exceeded for login", { identifier })
+      return NextResponse.json(
+        { error: "Too many login attempts. Please try again later." },
+        {
+          status: 429,
+          headers: getRateLimitHeaders(rateLimit.remaining, rateLimit.resetTime),
+        }
+      )
     }
+
+    // Validate request body
+    const validation = await validateRequestBody(loginSchema, request)
+    if (!validation.success) {
+      return validation.error
+    }
+
+    const { email, password } = validation.data
 
     const db = await getDatabase()
     const usersCollection = db.collection<User>("users")
@@ -20,6 +40,11 @@ export async function POST(request: NextRequest) {
     const user = await usersCollection.findOne({ email })
     if (!user) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
+    }
+
+    // Check if user has a password (not OAuth user)
+    if (!user.password) {
+      return NextResponse.json({ error: "This account uses social login. Please sign in with your social account." }, { status: 401 })
     }
 
     // Verify password
@@ -50,7 +75,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error("Login error:", error)
+    logError(error, { endpoint: "/api/auth/login" })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

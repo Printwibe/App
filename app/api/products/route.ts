@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
-import type { Product } from "@/lib/models/types"
+import type { Product } from "@/lib/types"
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       productsCollection.countDocuments(query),
     ])
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       products,
       pagination: {
         page,
@@ -45,6 +45,14 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(total / limit),
       },
     })
+
+    // Add cache control headers for better performance
+    response.headers.set(
+      'Cache-Control',
+      'public, s-maxage=60, stale-while-revalidate=300'
+    )
+
+    return response
   } catch (error) {
     console.error("Products fetch error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

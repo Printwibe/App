@@ -1,6 +1,6 @@
 "use client"
 import { AlertCircle, CheckCircle, AlertTriangle, Info } from "lucide-react"
-import type { Toast } from "@/lib/use-toast-hook"
+import type { Toast } from "@/hooks/use-toast-hook"
 
 interface ToastContainerProps {
   toasts: Toast[]

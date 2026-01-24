@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Plus, Trash2, Upload, Loader2 } from "lucide-react"
-import type { Product, ProductVariant } from "@/lib/models/types"
+import type { Product, ProductVariant } from "@/lib/types"
 
 interface ProductFormProps {
   product?: Product
@@ -35,6 +35,8 @@ export function ProductForm({ product }: ProductFormProps) {
     product?.variants || [{ size: "", color: "", stock: 0, sku: "" }],
   )
   const [images, setImages] = useState<string[]>(product?.images || [])
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [imageUrl, setImageUrl] = useState("")
 
   const generateSlug = (name: string) => {
     return name
@@ -63,6 +65,71 @@ export function ProductForm({ product }: ProductFormProps) {
     const updated = [...variants]
     updated[index] = { ...updated[index], [field]: value }
     setVariants(updated)
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setUploadingImage(true)
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const formData = new FormData()
+        formData.append("file", file)
+
+        const response = await fetch("/api/v1/admin/upload", {
+          method: "POST",
+          body: formData,
+        })
+
+        if (!response.ok) throw new Error("Upload failed")
+        const data = await response.json()
+        return data.url
+      })
+
+      const uploadedUrls = await Promise.all(uploadPromises)
+      setImages([...images, ...uploadedUrls])
+    } catch (error) {
+      console.error("Error uploading images:", error)
+      alert("Failed to upload images")
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  const removeImage = (index: number) => {
+    const imageUrl = images[index]
+    
+    // If it's a Vercel Blob URL, delete it from storage
+    if (imageUrl.includes('blob.vercel-storage.com') || imageUrl.includes('public.blob.vercel-storage.com')) {
+      fetch('/api/v1/admin/upload/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: imageUrl }),
+      })
+        .then(res => {
+          if (!res.ok) {
+            console.error('Failed to delete image from storage')
+          }
+        })
+        .catch(err => console.error('Error deleting image:', err))
+    }
+    
+    // Remove from state
+    setImages(images.filter((_, i) => i !== index))
+  }
+
+  const handleAddImageUrl = () => {
+    if (imageUrl.trim()) {
+      // Basic URL validation
+      try {
+        new URL(imageUrl)
+        setImages([...images, imageUrl.trim()])
+        setImageUrl("")
+      } catch {
+        alert("Please enter a valid URL")
+      }
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -165,13 +232,68 @@ export function ProductForm({ product }: ProductFormProps) {
             <CardHeader>
               <CardTitle>Product Images</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {images.length > 0 && (
+                <div className="grid grid-cols-3 gap-4">
+                  {images.map((image, index) => (
+                    <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-muted group">
+                      <img src={image} alt={`Product ${index + 1}`} className="object-cover w-full h-full" />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Image URL Input */}
+              <div className="space-y-2">
+                <Label htmlFor="image-url">Or Add Image URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="image-url"
+                    type="url"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://example.com/image.jpg"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        handleAddImageUrl()
+                      }
+                    }}
+                  />
+                  <Button type="button" onClick={handleAddImageUrl} variant="outline" size="sm">
+                    Add URL
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Enter a direct image URL to add without uploading</p>
+              </div>
+
+              {/* File Upload */}
               <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
                 <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-4" />
-                <p className="text-sm text-muted-foreground mb-2">Drag and drop images here, or click to browse</p>
-                <Button type="button" variant="outline" size="sm">
-                  Choose Files
-                </Button>
+                <p className="text-sm text-muted-foreground mb-2">
+                  {uploadingImage ? "Uploading..." : "Upload from your computer"}
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  disabled={uploadingImage}
+                  className="hidden"
+                  id="image-upload"
+                />
+                <label htmlFor="image-upload">
+                  <Button type="button" variant="outline" size="sm" disabled={uploadingImage} asChild>
+                    <span>{uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : "Choose Files"}</span>
+                  </Button>
+                </label>
               </div>
             </CardContent>
           </Card>

@@ -1,11 +1,12 @@
 import { getDatabase } from "./mongodb"
-import type { User } from "./models/types"
+import type { User } from "./types"
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
 import { cookies } from "next/headers"
+import { env } from "./env"
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
-const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "admin-secret-key-change-this"
+const JWT_SECRET = env.JWT_SECRET
+const ADMIN_JWT_SECRET = env.ADMIN_JWT_SECRET
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 12)
@@ -44,6 +45,9 @@ export async function getCurrentUser(): Promise<User | null> {
   return user
 }
 
+// DEPRECATED: Do not use for admin routes
+// This checks the 'users' collection, not 'admins' collection
+// Use verifyAdminToken() or getCurrentAdmin() instead
 export async function isAdmin(): Promise<boolean> {
   const user = await getCurrentUser()
   return user?.role === "admin"
