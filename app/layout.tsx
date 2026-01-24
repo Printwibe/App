@@ -37,7 +37,9 @@ export const metadata: Metadata = {
   creator: "Rutik Kulkarni",
   publisher: "PrintWibe",
   generator: "Next.js",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  ),
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -95,16 +97,16 @@ export default function RootLayout({
     "@type": "Organization",
     name: "PrintWibe",
     url: process.env.NEXT_PUBLIC_APP_URL || "https://printwibe.com",
-    logo: `${process.env.NEXT_PUBLIC_APP_URL || "https://printwibe.com"}/logo.png`,
+    logo: `${
+      process.env.NEXT_PUBLIC_APP_URL || "https://printwibe.com"
+    }/logo.png`,
     description:
       "Design and order custom printed products online. Premium quality t-shirts, mugs, bottles and more.",
     founder: {
       "@type": "Person",
       name: "Harish Chunarkar",
     },
-    sameAs: [
-      "https://instagram.com/print_wibe",
-    ],
+    sameAs: ["https://instagram.com/print_wibe"],
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "Customer Service",
@@ -114,11 +116,13 @@ export default function RootLayout({
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate: `${process.env.NEXT_PUBLIC_APP_URL || "https://printwibe.com"}/products?search={search_term_string}`,
+        urlTemplate: `${
+          process.env.NEXT_PUBLIC_APP_URL || "https://printwibe.com"
+        }/products?search={search_term_string}`,
       },
       "query-input": "required name=search_term_string",
     },
-  }
+  };
 
   return (
     <html lang="en">
@@ -128,7 +132,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className={`font-sans antialiased`}>
+      <body className={`font-sans antialiased`} suppressHydrationWarning>
         <AuthProvider>
           <ToastProvider>{children}</ToastProvider>
         </AuthProvider>
