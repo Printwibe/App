@@ -10,25 +10,64 @@ export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userName, setUserName] = useState("")
+  const [cartCount, setCartCount] = useState(0)
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch("/api/auth/me")
+      if (response.ok) {
+        const data = await response.json()
+        setIsLoggedIn(true)
+        setUserName(data.user.name)
+      } else {
+        setIsLoggedIn(false)
+        setUserName("")
+      }
+    } catch (error) {
+      console.error("Auth check failed:", error)
+      setIsLoggedIn(false)
+      setUserName("")
+    }
+  }
+
+  const fetchCartCount = async () => {
+    try {
+      const response = await fetch("/api/cart")
+      if (response.ok) {
+        const data = await response.json()
+        const items = data.cart?.items || []
+        const totalCount = items.reduce((sum: number, item: any) => sum + item.quantity, 0)
+        setCartCount(totalCount)
+      } else {
+        setCartCount(0)
+      }
+    } catch (error) {
+      console.error("Failed to fetch cart count:", error)
+      setCartCount(0)
+    }
+  }
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch("/api/auth/me")
-        if (response.ok) {
-          const data = await response.json()
-          setIsLoggedIn(true)
-          setUserName(data.user.name)
-        } else {
-          setIsLoggedIn(false)
-        }
-      } catch (error) {
-        console.error("Auth check failed:", error)
-        setIsLoggedIn(false)
-      }
+    checkAuth()
+    fetchCartCount()
+
+    // Listen for custom auth change events
+    const handleAuthChange = () => {
+      checkAuth()
     }
 
-    checkAuth()
+    // Listen for cart updates
+    const handleCartUpdate = () => {
+      fetchCartCount()
+    }
+
+    window.addEventListener('auth-change', handleAuthChange)
+    window.addEventListener('cart-updated', handleCartUpdate)
+    
+    return () => {
+      window.removeEventListener('auth-change', handleAuthChange)
+      window.removeEventListener('cart-updated', handleCartUpdate)
+    }
   }, [])
 
   return (
@@ -63,7 +102,12 @@ export function Header() {
             <Link href="/cart">
               <Button variant="ghost" size="icon" className="relative">
                 <ShoppingCart className="h-5 w-5" />
-                <span className="sr-only">Cart</span>
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-[10px] font-bold text-white bg-primary rounded-full border-2 border-background">
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                )}
+                <span className="sr-only">Cart ({cartCount} items)</span>
               </Button>
             </Link>
             <UserDropdown isLoggedIn={isLoggedIn} userName={userName} />

@@ -3,8 +3,9 @@
 import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { User, LogOut, ShoppingBag, Mail } from "lucide-react"
+import { User, LogOut, ShoppingBag, Mail, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 interface UserDropdownProps {
   isLoggedIn: boolean
@@ -15,6 +16,16 @@ export function UserDropdown({ isLoggedIn, userName }: UserDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+
+  // Get initials from name
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+  }
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -32,6 +43,13 @@ export function UserDropdown({ isLoggedIn, userName }: UserDropdownProps) {
     try {
       const response = await fetch("/api/auth/logout", { method: "POST" })
       if (response.ok) {
+        // Clear any localStorage items
+        localStorage.removeItem('auth-token')
+        localStorage.removeItem('user')
+        
+        // Trigger auth change event for real-time UI update
+        window.dispatchEvent(new Event('auth-change'))
+        
         setIsOpen(false)
         router.push("/")
         router.refresh()
@@ -43,10 +61,28 @@ export function UserDropdown({ isLoggedIn, userName }: UserDropdownProps) {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)} className="relative">
-        <User className="h-5 w-5" />
-        <span className="sr-only">Account menu</span>
-      </Button>
+      {isLoggedIn ? (
+        <Button 
+          variant="ghost" 
+          onClick={() => setIsOpen(!isOpen)} 
+          className="flex items-center gap-2"
+        >
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
+              {userName ? getInitials(userName) : "U"}
+            </AvatarFallback>
+          </Avatar>
+          <span className="hidden md:inline-block text-sm font-medium">
+            {userName}
+          </span>
+          <ChevronDown className="h-4 w-4 hidden md:inline-block" />
+        </Button>
+      ) : (
+        <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)} className="relative">
+          <User className="h-5 w-5" />
+          <span className="sr-only">Account menu</span>
+        </Button>
+      )}
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-48 bg-background border border-border rounded-lg shadow-lg py-2 z-50">

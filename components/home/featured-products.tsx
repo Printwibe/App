@@ -1,48 +1,59 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { ArrowRight } from "lucide-react"
+import type { Product } from "@/lib/types"
+import { getCurrencySymbol } from "@/lib/utils/currency"
 
-const featuredProducts = [
-  {
-    id: "1",
-    name: "Classic White Tee",
-    slug: "classic-white-tee",
-    price: 29.99,
-    image: "/white-t-shirt-on-hanger-minimal.jpg",
-    category: "T-Shirt",
-    customizable: true,
-  },
-  {
-    id: "2",
-    name: "Ceramic Mug",
-    slug: "ceramic-mug",
-    price: 19.99,
-    image: "/white-ceramic-mug-on-table-minimal.jpg",
-    category: "Mug",
-    customizable: true,
-  },
-  {
-    id: "3",
-    name: "Sport Bottle",
-    slug: "sport-bottle",
-    price: 24.99,
-    image: "/white-sport-water-bottle-minimal.jpg",
-    category: "Bottle",
-    customizable: true,
-  },
-  {
-    id: "4",
-    name: "Premium Black Tee",
-    slug: "premium-black-tee",
-    price: 34.99,
-    image: "/black-t-shirt-on-hanger-minimal.jpg",
-    category: "T-Shirt",
-    customizable: true,
-  },
-]
+async function getFeaturedProducts() {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+    const response = await fetch(`${baseUrl}/api/products?limit=8`, {
+      next: { 
+        revalidate: 300,
+        tags: ['products', 'featured']
+      }
+    })
 
-export function FeaturedProducts() {
+    if (!response.ok) {
+      throw new Error("Failed to fetch products")
+    }
+
+    const data = await response.json()
+    return data.products?.slice(0, 4) || []
+  } catch (error) {
+    console.error("Error fetching featured products:", error)
+    return []
+  }
+}
+
+async function getSettings() {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+    const response = await fetch(`${baseUrl}/api/settings`, {
+      next: { revalidate: 300 }
+    })
+    if (!response.ok) return { currency: "INR" }
+    return await response.json()
+  } catch (error) {
+    console.error("Error fetching settings:", error)
+    return { currency: "INR" }
+  }
+}
+
+export async function FeaturedProducts() {
+  const [products, settings] = await Promise.all([
+    getFeaturedProducts(),
+    getSettings()
+  ])
+  
+  const currencySymbol = getCurrencySymbol(settings.currency)
+
+  if (products.length === 0) {
+    return null
+  }
+
   return (
     <section className="py-20 bg-secondary/50">
       <div className="container mx-auto px-4">
@@ -60,28 +71,46 @@ export function FeaturedProducts() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredProducts.map((product) => (
-            <Link key={product.id} href={`/products/${product.slug}`} className="group">
-              <div className="relative aspect-[4/5] bg-card rounded-lg overflow-hidden mb-4">
-                <Image
-                  src={product.image || "/placeholder.svg"}
-                  alt={product.name}
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                {product.customizable && (
-                  <span className="absolute top-3 left-3 bg-accent text-accent-foreground text-xs px-2 py-1 rounded">
-                    Customizable
-                  </span>
-                )}
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">{product.category}</p>
-                <h3 className="font-medium group-hover:text-accent transition-colors">{product.name}</h3>
-                <p className="text-lg font-semibold">${product.price.toFixed(2)}</p>
-              </div>
-            </Link>
-          ))}
+          {products.map((product: Product) => {
+            const totalStock = product.variants?.reduce((sum, v) => sum + (v.stock || 0), 0) || 0
+            
+            return (
+              <Link key={product.slug} href={`/products/${product.slug}`} className="group">
+                <div className="relative aspect-[4/5] bg-muted rounded-lg overflow-hidden mb-4">
+                  <Image
+                    src={product.images[0] || "/placeholder.svg"}
+                    alt={product.name}
+                    fill
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                  />
+                  <div className="absolute top-3 left-3">
+                    {product.allowCustomization && (
+                      <Badge variant="secondary" className="bg-accent text-accent-foreground">
+                        Customizable
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {product.category.replace('-', ' ')}
+                  </p>
+                  <h3 className="font-medium group-hover:text-accent transition-colors line-clamp-1">
+                    {product.name}
+                  </h3>
+                  <p className="text-lg font-semibold">
+                    {currencySymbol}{product.basePrice.toFixed(2)}
+                    {product.allowCustomization && (
+                      <span className="text-sm font-normal text-muted-foreground ml-1">
+                        +{currencySymbol}{product.customizationPrice.toFixed(2)}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </Link>
+            )
+          })}
         </div>
       </div>
     </section>

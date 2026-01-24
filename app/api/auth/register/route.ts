@@ -1,16 +1,19 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import { hashPassword } from "@/lib/auth"
-import type { User } from "@/lib/models/types"
+import type { User } from "@/lib/types"
+import { validateRequestBody } from "@/lib/validate"
+import { registerSchema } from "@/lib/validations"
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { name, email, phone, password } = body
-
-    if (!name || !email || !password) {
-      return NextResponse.json({ error: "Name, email and password are required" }, { status: 400 })
+    // Validate request body
+    const validation = await validateRequestBody(registerSchema, request)
+    if (!validation.success) {
+      return validation.error
     }
+
+    const { name, email, phone, password } = validation.data
 
     const db = await getDatabase()
     const usersCollection = db.collection<User>("users")

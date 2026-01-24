@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Loader2, Plus, Pencil, Trash2, MapPin } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash2, MapPin, Home, Briefcase, MapPinned } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 interface Address {
   _id: string
@@ -24,6 +24,7 @@ interface Address {
 }
 
 export default function AddressesPage() {
+  const { toast } = useToast()
   const [addresses, setAddresses] = useState<Address[]>([])
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -50,9 +51,20 @@ export default function AddressesPage() {
       if (res.ok) {
         const data = await res.json()
         setAddresses(data)
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load addresses",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Failed to fetch addresses:", error)
+      toast({
+        title: "Error",
+        description: "Something went wrong",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -73,27 +85,59 @@ export default function AddressesPage() {
       })
 
       if (res.ok) {
+        toast({
+          title: "Success",
+          description: editingAddress ? "Address updated successfully!" : "Address added successfully!",
+        })
         await fetchAddresses()
         setIsDialogOpen(false)
         resetForm()
+      } else {
+        const data = await res.json()
+        toast({
+          title: "Error",
+          description: data.error || "Failed to save address",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Failed to save address:", error)
+      toast({
+        title: "Error",
+        description: "Something went wrong",
+        variant: "destructive",
+      })
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this address?")) return
+    if (!window.confirm("Are you sure you want to delete this address?")) return
 
     try {
       const res = await fetch(`/api/user/addresses/${id}`, { method: "DELETE" })
       if (res.ok) {
+        toast({
+          title: "Success",
+          description: "Address deleted successfully!",
+        })
         await fetchAddresses()
+      } else {
+        const data = await res.json()
+        toast({
+          title: "Error",
+          description: data.error || "Failed to delete address",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Failed to delete address:", error)
+      toast({
+        title: "Error",
+        description: "Something went wrong",
+        variant: "destructive",
+      })
     }
   }
 
@@ -158,16 +202,35 @@ export default function AddressesPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label>Address Type</Label>
-                <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="home">Home</SelectItem>
-                    <SelectItem value="work">Work</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={formData.type === "home" ? "default" : "outline"}
+                    className="flex-1 flex items-center gap-2"
+                    onClick={() => setFormData({ ...formData, type: "home" })}
+                  >
+                    <Home className="h-4 w-4" />
+                    Home
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.type === "work" ? "default" : "outline"}
+                    className="flex-1 flex items-center gap-2"
+                    onClick={() => setFormData({ ...formData, type: "work" })}
+                  >
+                    <Briefcase className="h-4 w-4" />
+                    Work
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.type === "other" ? "default" : "outline"}
+                    className="flex-1 flex items-center gap-2"
+                    onClick={() => setFormData({ ...formData, type: "other" })}
+                  >
+                    <MapPinned className="h-4 w-4" />
+                    Other
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -277,6 +340,9 @@ export default function AddressesPage() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base flex items-center gap-2">
+                    {address.type === "home" && <Home className="h-4 w-4" />}
+                    {address.type === "work" && <Briefcase className="h-4 w-4" />}
+                    {address.type === "other" && <MapPinned className="h-4 w-4" />}
                     {address.type.charAt(0).toUpperCase() + address.type.slice(1)}
                     {address.isDefault && (
                       <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Default</span>

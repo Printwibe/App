@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Save } from "lucide-react"
+import { Loader2, Save, User } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 interface UserProfile {
   name: string
@@ -17,6 +18,7 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
+  const { toast } = useToast()
   const [profile, setProfile] = useState<UserProfile>({
     name: "",
     email: "",
@@ -25,7 +27,6 @@ export default function ProfilePage() {
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState("")
 
   useEffect(() => {
     fetchProfile()
@@ -40,11 +41,22 @@ export default function ProfilePage() {
           name: data.name || "",
           email: data.email || "",
           phone: data.phone || "",
-          dob: data.dob ? data.dob.split("T")[0] : "",
+          dob: data.dob ? new Date(data.dob).toISOString().split("T")[0] : "",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load profile data",
+          variant: "destructive",
         })
       }
     } catch (error) {
       console.error("Failed to fetch profile:", error)
+      toast({
+        title: "Error",
+        description: "Something went wrong",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -53,23 +65,39 @@ export default function ProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
-    setMessage("")
 
     try {
       const res = await fetch("/api/user/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
+        body: JSON.stringify({
+          name: profile.name,
+          phone: profile.phone,
+          dob: profile.dob,
+        }),
       })
 
       if (res.ok) {
-        setMessage("Profile updated successfully!")
+        toast({
+          title: "Success",
+          description: "Profile updated successfully!",
+        })
+        // Trigger auth-change event to update header with new name
+        window.dispatchEvent(new Event('auth-change'))
       } else {
         const data = await res.json()
-        setMessage(data.error || "Failed to update profile")
+        toast({
+          title: "Error",
+          description: data.error || "Failed to update profile",
+          variant: "destructive",
+        })
       }
     } catch (error) {
-      setMessage("Something went wrong")
+      toast({
+        title: "Error",
+        description: "Something went wrong",
+        variant: "destructive",
+      })
     } finally {
       setSaving(false)
     }
@@ -86,25 +114,37 @@ export default function ProfilePage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Account Information</CardTitle>
-        <CardDescription>Update your personal details</CardDescription>
+        <div className="flex items-center gap-2">
+          <User className="h-5 w-5 text-primary" />
+          <div>
+            <CardTitle>Account Information</CardTitle>
+            <CardDescription>Update your personal details</CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="name">Full Name *</Label>
               <Input
                 id="name"
                 value={profile.name}
                 onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                 placeholder="John Doe"
+                required
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
-              <Input id="email" type="email" value={profile.email} disabled className="bg-muted" />
+              <Input 
+                id="email" 
+                type="email" 
+                value={profile.email} 
+                disabled 
+                className="bg-muted cursor-not-allowed" 
+              />
               <p className="text-xs text-muted-foreground">Email cannot be changed</p>
             </div>
 
@@ -130,13 +170,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {message && (
-            <p className={cn("text-sm", message.includes("success") ? "text-green-600" : "text-destructive")}>
-              {message}
-            </p>
-          )}
-
-          <Button type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving} className="w-full md:w-auto">
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

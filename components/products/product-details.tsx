@@ -4,28 +4,30 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import type { Product } from "@/lib/models/types"
+import type { Product } from "@/lib/types"
 import { Minus, Plus, ShoppingCart, Upload, Check, ShoppingBag } from "lucide-react"
 import Link from "next/link"
-import { DesignUploader } from "./design-uploader"
+import { useRouter } from "next/navigation"
 import { useToastContext } from "@/components/toast/toast-provider"
+import { useCurrency } from "@/hooks/use-currency"
 
 interface ProductDetailsProps {
   product: Product
 }
 
 export function ProductDetails({ product }: ProductDetailsProps) {
+  const router = useRouter()
   const [selectedImage, setSelectedImage] = useState(0)
   const [selectedSize, setSelectedSize] = useState(product.variants[0]?.size || "")
   const [selectedColor, setSelectedColor] = useState(product.variants[0]?.color || "")
   const [quantity, setQuantity] = useState(1)
   const [wantsCustomization, setWantsCustomization] = useState(false)
-  const [showUploader, setShowUploader] = useState(false)
-  const [uploadedDesign, setUploadedDesign] = useState<{ id: string; url: string } | null>(null)
   const [isInCart, setIsInCart] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [customizationData, setCustomizationData] = useState<any>(null)
 
   const { addToast } = useToastContext()
+  const { symbol: currencySymbol } = useCurrency()
 
   // Get unique sizes and colors
   const sizes = [...new Set(product.variants.map((v) => v.size))]
@@ -37,6 +39,20 @@ export function ProductDetails({ product }: ProductDetailsProps) {
 
   // Calculate total price
   const totalPrice = product.basePrice + (wantsCustomization ? product.customizationPrice : 0)
+
+  useEffect(() => {
+    // Load customization data from sessionStorage
+    const storedData = sessionStorage.getItem(`customized-${product._id}`)
+    if (storedData) {
+      try {
+        const parsed = JSON.parse(storedData)
+        setCustomizationData(parsed)
+        setWantsCustomization(true)
+      } catch (error) {
+        console.error("Error parsing customization data:", error)
+      }
+    }
+  }, [product._id])
 
   useEffect(() => {
     const checkCartStatus = async () => {
@@ -60,26 +76,20 @@ export function ProductDetails({ product }: ProductDetailsProps) {
     checkCartStatus()
   }, [product._id, selectedSize, selectedColor])
 
-  const handleDesignUploaded = (designId: string, designUrl: string) => {
-    setUploadedDesign({ id: designId, url: designUrl })
-    setWantsCustomization(true)
-    setShowUploader(false)
-    addToast("Design uploaded successfully!", "success")
-  }
-
   const handleAddToCart = async () => {
     if (isInCart) {
-      window.location.href = "/cart"
+      router.push("/cart")
       return
     }
 
     setIsLoading(true)
+    
     const cartItem = {
       productId: product._id,
       variant: { size: selectedSize, color: selectedColor },
       quantity,
       isCustomized: wantsCustomization,
-      customDesignId: uploadedDesign?.id,
+      customizationData: customizationData || undefined, // Include customization data
       unitPrice: product.basePrice,
       customizationFee: wantsCustomization ? product.customizationPrice : 0,
     }
@@ -99,25 +109,16 @@ export function ProductDetails({ product }: ProductDetailsProps) {
         addToast("Product added to cart!", "success")
         setIsInCart(true)
         setQuantity(1)
+        // Clear customization data from sessionStorage after adding to cart
+        if (customizationData) {
+          sessionStorage.removeItem(`customized-${product._id}`)
+        }
       }
     } catch (error) {
       addToast("Something went wrong. Please try again.", "error")
     } finally {
       setIsLoading(false)
     }
-  }
-
-  if (showUploader) {
-    return (
-      <div className="container mx-auto px-4 py-12">
-        <DesignUploader
-          productId={product.slug}
-          productImage={product.images[0] || "/placeholder.svg"}
-          onDesignUploaded={handleDesignUploaded}
-          onCancel={() => setShowUploader(false)}
-        />
-      </div>
-    )
   }
 
   return (
@@ -133,18 +134,6 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               className="object-cover"
               priority
             />
-            {uploadedDesign && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="relative w-1/3 h-1/3">
-                  <Image
-                    src={uploadedDesign.url || "/placeholder.svg"}
-                    alt="Your design"
-                    fill
-                    className="object-contain"
-                  />
-                </div>
-              </div>
-            )}
           </div>
 
           {product.images.length > 1 && (
@@ -178,10 +167,10 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
 
           <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-semibold">${totalPrice.toFixed(2)}</span>
+            <span className="text-3xl font-semibold">{currencySymbol}{totalPrice.toFixed(2)}</span>
             {wantsCustomization && (
               <span className="text-sm text-muted-foreground">
-                (includes ${product.customizationPrice.toFixed(2)} customization fee)
+                (includes {currencySymbol}{product.customizationPrice.toFixed(2)} customization fee)
               </span>
             )}
           </div>
@@ -229,40 +218,38 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           )}
 
           {product.allowCustomization && (
-            <div className="p-4 bg-secondary rounded-lg space-y-3">
+            <div className={`p-4 rounded-lg space-y-3 ${
+              customizationData ? 'bg-green-50 dark:bg-green-950 border-2 border-green-500' : 'bg-secondary'
+            }`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">Add Custom Design</p>
+                  <p className="font-medium flex items-center gap-2">
+                    {customizationData ? (
+                      <>
+                        <Check className="h-5 w-5 text-green-600" />
+                        Custom Design Added
+                      </>
+                    ) : (
+                      'Add Custom Design'
+                    )}
+                  </p>
                   <p className="text-sm text-muted-foreground">
-                    Upload your own artwork (+${product.customizationPrice.toFixed(2)})
+                    {customizationData ? (
+                      `${Object.keys(customizationData.viewDesigns || {}).length} view(s) customized`
+                    ) : (
+                      `Upload your own artwork (+${currencySymbol}${product.customizationPrice.toFixed(2)})`
+                    )}
                   </p>
                 </div>
-                {uploadedDesign ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-green-600 flex items-center gap-1">
-                      <Check className="h-4 w-4" />
-                      Design added
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowUploader(true)}
-                      className="cursor-pointer"
-                    >
-                      Change
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant={wantsCustomization ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowUploader(true)}
-                    className="cursor-pointer"
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Design
-                  </Button>
-                )}
+                <Button
+                  variant={customizationData ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => router.push(`/products/${product.slug}/customize`)}
+                  className="cursor-pointer"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {customizationData ? 'Edit Design' : 'Customize Design'}
+                </Button>
               </div>
             </div>
           )}

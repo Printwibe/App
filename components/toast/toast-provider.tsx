@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { createContext, useContext } from "react"
-import { useToast } from "@/lib/use-toast-hook"
+import { useToast } from "@/hooks/use-toast-hook"
 import { ToastContainer } from "./toast-container"
 
 type ToastContextType = ReturnType<typeof useToast>

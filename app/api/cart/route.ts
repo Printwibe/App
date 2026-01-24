@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import { getCurrentUser } from "@/lib/auth"
-import type { Cart, CartItem } from "@/lib/models/types"
+import type { Cart, CartItem } from "@/lib/types"
 import { ObjectId } from "mongodb"
 
 export async function GET() {
@@ -14,7 +14,32 @@ export async function GET() {
     const db = await getDatabase()
     const cart = await db.collection<Cart>("carts").findOne({ userId: user._id })
 
-    return NextResponse.json({ cart: cart || { items: [] } })
+    if (!cart || !cart.items || cart.items.length === 0) {
+      return NextResponse.json({ cart: { items: [] } })
+    }
+
+    // Populate product details
+    const productsCollection = db.collection("products")
+    const enrichedItems = await Promise.all(
+      cart.items.map(async (item) => {
+        const product = await productsCollection.findOne({ _id: item.productId })
+        return {
+          productId: item.productId.toString(),
+          name: product?.name || "Unknown Product",
+          slug: product?.slug || "",
+          image: product?.images?.[0] || "/placeholder.svg",
+          variant: item.variant,
+          quantity: item.quantity,
+          isCustomized: item.isCustomized,
+          customDesignUrl: item.customDesignId ? `/uploads/designs/${item.customDesignId}` : undefined,
+          customizationData: item.customizationData || undefined,
+          unitPrice: item.unitPrice,
+          customizationFee: item.customizationFee,
+        }
+      })
+    )
+
+    return NextResponse.json({ cart: { items: enrichedItems } })
   } catch (error) {
     console.error("Cart fetch error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -29,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { productId, variant, quantity, isCustomized, customDesignId, unitPrice, customizationFee } = body
+    const { productId, variant, quantity, isCustomized, customDesignId, tempDesigns, customizationData, unitPrice, customizationFee } = body
 
     const db = await getDatabase()
     const cartsCollection = db.collection<Cart>("carts")
@@ -42,6 +67,8 @@ export async function POST(request: NextRequest) {
       quantity,
       isCustomized: isCustomized || false,
       customDesignId: customDesignId ? new ObjectId(customDesignId) : undefined,
+      tempDesigns: tempDesigns || undefined, // Store temporary designs (legacy)
+      customizationData: customizationData || undefined, // Store new customization data from workspace
       unitPrice: unitPrice || 0,
       customizationFee: customizationFee || 0,
     }
