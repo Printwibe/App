@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import { getCurrentUser } from "@/lib/auth"
-import type { CustomDesign } from "@/lib/models/types"
+import type { CustomDesign } from "@/lib/types"
 import { put } from "@vercel/blob"
 import { ObjectId } from "mongodb"
 
@@ -15,6 +15,19 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const file = formData.get("file") as File
     const productId = formData.get("productId") as string
+    const designType = formData.get("designType") as string
+    const orderId = formData.get("orderId") as string
+    const saveToLibrary = formData.get("saveToLibrary") === "true"
+    const customPositionStr = formData.get("customPosition") as string
+    
+    let customPosition: any = undefined
+    if (customPositionStr) {
+      try {
+        customPosition = JSON.parse(customPositionStr)
+      } catch (e) {
+        // Invalid JSON, ignore
+      }
+    }
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
@@ -42,8 +55,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Organize uploads by user, then by order/saved-designs
+    const timestamp = Date.now()
+    const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, "_")
+    
+    let blobPath: string
+    if (saveToLibrary) {
+      // Save to user's design library
+      blobPath = `designs/${user._id}/library/${designType}/${timestamp}-${sanitizedFilename}`
+    } else if (orderId) {
+      // Organize by order ID for easy retrieval
+      blobPath = `designs/${user._id}/orders/${orderId}/${designType}/${timestamp}-${sanitizedFilename}`
+    } else {
+      // Fallback to user folder
+      blobPath = `designs/${user._id}/${timestamp}-${sanitizedFilename}`
+    }
+
     // Upload to Vercel Blob
-    const blob = await put(`designs/${user._id}/${Date.now()}-${file.name}`, file, {
+    const blob = await put(blobPath, file, {
       access: "public",
     })
 
@@ -69,6 +98,10 @@ export async function POST(request: NextRequest) {
         width: 200,
         height: 200,
       },
+      customPosition: customPosition || undefined,
+      designType: designType || "front",
+      orderId: orderId || undefined,
+      savedToLibrary: saveToLibrary,
       status: "pending",
       createdAt: new Date(),
       updatedAt: new Date(),

@@ -1,33 +1,104 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Save, AlertCircle } from "lucide-react"
+import { Save, AlertCircle, Loader2 } from "lucide-react"
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState({
-    storeName: "PrintWibe",
-    adminEmail: "admin@printwibe.com",
-    supportEmail: "support@printwibe.com",
-    phone: "+1 (555) 123-4567",
-    address: "123 Main Street, San Francisco, CA 94105",
-    city: "San Francisco",
-    state: "CA",
-    country: "United States",
-    postalCode: "94105",
-    businessHours: "Monday - Friday: 9:00 AM - 6:00 PM",
-    aboutUs: "PrintWibe is a leading print-on-demand platform offering custom merchandise.",
-    shippingCost: "15.00",
-    taxRate: "8.5",
+    storeName: "",
+    adminEmail: "",
+    supportEmail: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    country: "",
+    postalCode: "",
+    businessHours: "",
+    aboutUs: "",
+    shippingCost: "0",
+    taxRate: "0",
     currency: "USD",
+    paymentMethods: {
+      razorpay: {
+        enabled: true,
+        name: "Pay Online",
+        description: "UPI, Credit/Debit Card, Net Banking & Wallets"
+      },
+      cod: {
+        enabled: true,
+        name: "Cash on Delivery",
+        description: "Pay with cash when your order is delivered"
+      }
+    },
+    socialMedia: {
+      facebook: "",
+      twitter: "",
+      instagram: "",
+      linkedin: "",
+    },
   })
 
+  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
+  const [errorMessage, setErrorMessage] = useState("")
 
+  useEffect(() => {
+    fetchSettings()
+  }, [])
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch("/api/v1/admin/settings")
+      if (!response.ok) throw new Error("Failed to fetch settings")
+      const data = await response.json()
+      setSettings({
+        ...data.settings,
+        shippingCost: String(data.settings.shippingCost || 0),
+        taxRate: String(data.settings.taxRate || 0),
+        paymentMethods: data.settings.paymentMethods || {
+          razorpay: {
+            enabled: true,
+            name: "Pay Online",
+            description: "UPI, Credit/Debit Card, Net Banking & Wallets"
+          },
+          cod: {
+            enabled: true,
+            name: "Cash on Delivery",
+            description: "Pay with cash when your order is delivered"
+          }
+        },
+        socialMedia: data.settings.socialMedia || {
+          facebook: "",
+          twitter: "",
+          instagram: "",
+          linkedin: "",
+        },
+      })
+    } catch (error) {
+      console.error("Error fetching settings:", error)
+      setErrorMessage("Failed to load settings")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+
+  const handleSocialMediaChange = (platform: string, value: string) => {
+    setSettings((prev) => ({
+      ...prev,
+      socialMedia: {
+        ...prev.socialMedia,
+        [platform]: value,
+      },
+    }))
+  }
+  
   const handleInputChange = (e: any) => {
     const { name, value } = e.target
     setSettings((prev) => ({
@@ -38,20 +109,38 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     setIsSaving(true)
+    setSuccessMessage("")
+    setErrorMessage("")
+
     try {
-      // API call to save settings
-      // await fetch('/api/v1/admin/settings', {
-      //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(settings)
-      // })
+      const response = await fetch("/api/v1/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...settings,
+          shippingCost: parseFloat(settings.shippingCost) || 0,
+          taxRate: parseFloat(settings.taxRate) || 0,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to save settings")
+
       setSuccessMessage("Settings saved successfully!")
       setTimeout(() => setSuccessMessage(""), 3000)
     } catch (error) {
       console.error("Failed to save settings:", error)
+      setErrorMessage("Failed to save settings. Please try again.")
     } finally {
       setIsSaving(false)
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (
@@ -66,6 +155,14 @@ export default function SettingsPage() {
         <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex gap-2 text-sm text-green-800">
           <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
           {successMessage}
+        </div>
+      )}
+
+      {/* Error Message */}
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2 text-sm text-red-800">
+          <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+          {errorMessage}
         </div>
       )}
 
@@ -180,6 +277,50 @@ export default function SettingsPage() {
             <div>
               <label className="block text-sm font-medium mb-2">About Us</label>
               <Textarea name="aboutUs" value={settings.aboutUs} onChange={handleInputChange} rows={4} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Social Media Links */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Social Media</CardTitle>
+            <CardDescription>Links to your social media profiles</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Facebook URL</label>
+                <Input
+                  value={settings.socialMedia.facebook}
+                  onChange={(e) => handleSocialMediaChange("facebook", e.target.value)}
+                  placeholder="https://facebook.com/yourpage"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Twitter URL</label>
+                <Input
+                  value={settings.socialMedia.twitter}
+                  onChange={(e) => handleSocialMediaChange("twitter", e.target.value)}
+                  placeholder="https://twitter.com/yourhandle"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Instagram URL</label>
+                <Input
+                  value={settings.socialMedia.instagram}
+                  onChange={(e) => handleSocialMediaChange("instagram", e.target.value)}
+                  placeholder="https://instagram.com/yourprofile"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">LinkedIn URL</label>
+                <Input
+                  value={settings.socialMedia.linkedin}
+                  onChange={(e) => handleSocialMediaChange("linkedin", e.target.value)}
+                  placeholder="https://linkedin.com/company/yourcompany"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>

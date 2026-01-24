@@ -1,18 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
-import clientPromise from "@/lib/mongodb"
-import { verifyToken, hashPassword, verifyPassword } from "@/lib/auth"
-import { ObjectId } from "mongodb"
+import { getCurrentUser, hashPassword, verifyPassword } from "@/lib/auth"
+import { getDatabase } from "@/lib/mongodb"
 
 export async function PUT(request: NextRequest) {
   try {
-    const token = request.cookies.get("token")?.value
-    if (!token) {
+    const user = await getCurrentUser()
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
     const body = await request.json()
@@ -22,15 +16,12 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "All fields are required" }, { status: 400 })
     }
 
-    const client = await clientPromise
-    const db = client.db("printwibe")
+    if (newPassword.length < 6) {
+      return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 })
+    }
 
-    const user = await db.collection("users").findOne({
-      _id: new ObjectId(decoded.userId),
-    })
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    if (!user.password) {
+      return NextResponse.json({ error: "Invalid password state" }, { status: 400 })
     }
 
     const isValid = await verifyPassword(currentPassword, user.password)
@@ -40,8 +31,9 @@ export async function PUT(request: NextRequest) {
 
     const hashedPassword = await hashPassword(newPassword)
 
+    const db = await getDatabase()
     await db.collection("users").updateOne(
-      { _id: new ObjectId(decoded.userId) },
+      { _id: user._id },
       {
         $set: {
           password: hashedPassword,

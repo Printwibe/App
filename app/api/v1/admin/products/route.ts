@@ -1,18 +1,39 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
-import { isAdmin } from "@/lib/auth"
-import type { Product } from "@/lib/models/types"
+import { verifyAdminToken } from "@/lib/auth"
+import type { Product } from "@/lib/types"
 
 export async function GET(request: NextRequest) {
   try {
-    if (!(await isAdmin())) {
+    // Verify admin token from cookie
+    const token = request.cookies.get("admin-token")?.value
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const adminAuth = verifyAdminToken(token)
+    if (!adminAuth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const db = await getDatabase()
-    const products = await db.collection<Product>("products").find({}).sort({ createdAt: -1 }).toArray()
+    const productsCollection = db.collection<Product>("products")
+    
+    // Get total count
+    const total = await productsCollection.countDocuments({})
+    
+    // Get products
+    const products = await productsCollection.find({}).sort({ createdAt: -1 }).toArray()
 
-    return NextResponse.json({ products })
+    return NextResponse.json({ 
+      products,
+      pagination: {
+        total,
+        page: 1,
+        limit: total,
+        pages: 1
+      }
+    })
   } catch (error) {
     console.error("Admin products fetch error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -21,7 +42,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!(await isAdmin())) {
+    // Verify admin token from cookie
+    const token = request.cookies.get("admin-token")?.value
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const adminAuth = verifyAdminToken(token)
+    if (!adminAuth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
