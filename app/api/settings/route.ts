@@ -29,7 +29,7 @@ export async function GET() {
           postalCode: "94105",
           businessHours: "Monday - Friday: 9:00 AM - 6:00 PM",
           aboutUs: "PrintWibe is a leading print-on-demand platform offering custom merchandise.",
-          currency: "USD",
+          currency: "INR",
           paymentMethods: {
             razorpay: { enabled: true, name: "Pay Online", description: "UPI, Credit/Debit Card, Net Banking & Wallets" },
             cod: { enabled: true, name: "Cash on Delivery", description: "Pay with cash when your order is delivered" }
