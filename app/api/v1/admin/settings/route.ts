@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
         aboutUs: "PrintWibe is a leading print-on-demand platform offering custom merchandise.",
         shippingCost: 15.0,
         taxRate: 8.5,
-        currency: "USD",
+        currency: "INR",
         paymentMethods: {
           razorpay: {
             enabled: true,
@@ -168,7 +168,7 @@ export async function PUT(request: NextRequest) {
       aboutUs: body.aboutUs || "",
       shippingCost: Number(body.shippingCost) || 0,
       taxRate: Number(body.taxRate) || 0,
-      currency: body.currency || "USD",
+      currency: body.currency || "INR",
       paymentMethods: body.paymentMethods || {
         razorpay: { enabled: true, name: "Pay Online", description: "UPI, Credit/Debit Card, Net Banking & Wallets" },
         cod: { enabled: true, name: "Cash on Delivery", description: "Pay with cash when your order is delivered" }
