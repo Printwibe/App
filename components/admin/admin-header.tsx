@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { Bell, Menu, LogOut, User } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Bell, Menu, LogOut, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,40 +10,43 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
-import { AdminNotifications } from "./admin-notifications"
+} from "@/components/ui/dropdown-menu";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { AdminNotifications } from "./admin-notifications";
 
-export function AdminHeader() {
-  const router = useRouter()
-  const [adminInfo, setAdminInfo] = useState<{ name: string; email: string } | null>(null)
+export function AdminHeader({ onMenuClick }: { onMenuClick?: () => void }) {
+  const router = useRouter();
+  const [adminInfo, setAdminInfo] = useState<{
+    name: string;
+    email: string;
+  } | null>(null);
 
   useEffect(() => {
     // Fetch admin info
     const fetchAdminInfo = async () => {
       try {
-        const response = await fetch("/api/v1/admin/auth/me")
+        const response = await fetch("/api/v1/admin/auth/me");
         if (response.ok) {
-          const data = await response.json()
-          setAdminInfo(data.admin)
+          const data = await response.json();
+          setAdminInfo(data.admin);
         }
       } catch (error) {
-        console.error("Failed to fetch admin info:", error)
+        console.error("Failed to fetch admin info:", error);
       }
-    }
-    fetchAdminInfo()
-  }, [])
+    };
+    fetchAdminInfo();
+  }, []);
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/v1/admin/auth/logout", { method: "POST" })
-      router.push("/v1/admin/login")
-      router.refresh()
+      await fetch("/api/v1/admin/auth/logout", { method: "POST" });
+      router.push("/v1/admin/login");
+      router.refresh();
     } catch (error) {
-      console.error("Logout failed:", error)
+      console.error("Logout failed:", error);
     }
-  }
+  };
 
   // Get initials from name
   const getInitials = (name: string) => {
@@ -52,12 +55,17 @@ export function AdminHeader() {
       .map((n) => n[0])
       .join("")
       .toUpperCase()
-      .slice(0, 2)
-  }
+      .slice(0, 2);
+  };
 
   return (
     <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6">
-      <Button variant="ghost" size="icon" className="lg:hidden">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="lg:hidden"
+        onClick={onMenuClick}
+      >
         <Menu className="h-5 w-5" />
       </Button>
 
@@ -99,7 +107,10 @@ export function AdminHeader() {
               <span>Settings</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="text-destructive"
+            >
               <LogOut className="mr-2 h-4 w-4" />
               <span>Logout</span>
             </DropdownMenuItem>
@@ -107,5 +118,5 @@ export function AdminHeader() {
         </DropdownMenu>
       </div>
     </header>
-  )
+  );
 }
