@@ -1,41 +1,44 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { getCurrentUser } from "@/lib/auth"
-import { getDatabase } from "@/lib/mongodb"
-import { ObjectId } from "mongodb"
+import { type NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
+import { getDatabase } from "@/lib/mongodb";
+import { ObjectId } from "mongodb";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await params
-    const user = await getCurrentUser()
+    const { id } = await params;
+    const user = await getCurrentUser();
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const db = await getDatabase()
+    const db = await getDatabase();
     const order = await db.collection("orders").findOne({
       orderId: id,
       userId: user._id,
-    })
+    });
 
     if (!order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 })
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
     // Generate HTML invoice
-    const invoiceHTML = generateInvoiceHTML(order, user)
+    const invoiceHTML = generateInvoiceHTML(order, user);
 
     return new NextResponse(invoiceHTML, {
       headers: {
         "Content-Type": "text/html",
         "Content-Disposition": `inline; filename="invoice-${order.orderId}.html"`,
       },
-    })
+    });
   } catch (error) {
-    console.error("Invoice generation error:", error)
-    return NextResponse.json({ error: "Failed to generate invoice" }, { status: 500 })
+    console.error("Invoice generation error:", error);
+    return NextResponse.json(
+      { error: "Failed to generate invoice" },
+      { status: 500 },
+    );
   }
 }
 
@@ -45,8 +48,8 @@ function generateInvoiceHTML(order: any, user: any) {
       day: "numeric",
       month: "long",
       year: "numeric",
-    })
-  }
+    });
+  };
 
   return `
 <!DOCTYPE html>
@@ -238,7 +241,7 @@ function generateInvoiceHTML(order: any, user: any) {
             <td class="text-right">₹${item.unitPrice.toFixed(2)}</td>
             <td class="text-right">₹${item.itemTotal.toFixed(2)}</td>
           </tr>
-        `
+        `,
           )
           .join("")}
       </tbody>
@@ -272,7 +275,15 @@ function generateInvoiceHTML(order: any, user: any) {
 
     <!-- Payment Info -->
     <div style="margin-top: 30px; padding: 15px; background: #f8f8f8; border-radius: 4px;">
-      <p style="font-size: 14px; margin-bottom: 5px;"><strong>Payment Method:</strong> ${order.paymentMethod === "cod" ? "Cash on Delivery" : "Paid Online"}</p>
+      <p style="font-size: 14px; margin-bottom: 5px;"><strong>Payment Method:</strong> ${
+        order.paymentMethod === "cod" ||
+        order.paymentMethod === "cash_on_delivery"
+          ? "Cash on Delivery"
+          : order.paymentMethod === "razorpay" ||
+              order.paymentMethod === "online"
+            ? "Online Payment"
+            : order.paymentMethod || "N/A"
+      }</p>
       <p style="font-size: 14px;"><strong>Payment Status:</strong> <span class="badge badge-${order.paymentStatus}">${order.paymentStatus.toUpperCase()}</span></p>
       ${
         order.razorpayPaymentId
@@ -299,5 +310,5 @@ function generateInvoiceHTML(order: any, user: any) {
   </script>
 </body>
 </html>
-  `
+  `;
 }

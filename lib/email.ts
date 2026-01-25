@@ -295,7 +295,7 @@ export async function sendAdminOrderNotification(data: OrderEmailData) {
             
             <div style="margin-top: 20px;">
               <a href="${
-                env.NEXTAUTH_URL || "http://localhost:3000"
+                env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
               }/v1/admin/orders/${
                 data.orderNumber
               }" style="background-color: #28a745; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
