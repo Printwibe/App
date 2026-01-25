@@ -1,18 +1,22 @@
-import { NextResponse } from "next/server"
-import clientPromise from "@/lib/mongodb"
+import { NextResponse } from "next/server";
+import clientPromise from "@/lib/mongodb";
+import { sendContactNotificationEmail } from "@/lib/email";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { name, email, phone, subject, message } = body
+    const body = await request.json();
+    const { name, email, phone, subject, message } = body;
 
     // Validate required fields
     if (!name || !email || !subject || !message) {
-      return NextResponse.json({ error: "Name, email, subject, and message are required" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Name, email, subject, and message are required" },
+        { status: 400 },
+      );
     }
 
-    const client = await clientPromise
-    const db = client.db("printwibe")
+    const client = await clientPromise;
+    const db = client.db("printwibe");
 
     // Save contact message to database
     const contactMessage = {
@@ -23,16 +27,31 @@ export async function POST(request: Request) {
       message,
       status: "new", // new, read, replied
       createdAt: new Date(),
-    }
+    };
 
-    await db.collection("contacts").insertOne(contactMessage)
+    const result = await db.collection("contacts").insertOne(contactMessage);
 
-    // TODO: Send email notification to admin
-    // You can integrate with Resend, Nodemailer, or any email service here
+    // Send email notification to admin
+    await sendContactNotificationEmail({
+      name,
+      email,
+      phone,
+      subject,
+      message,
+    });
 
-    return NextResponse.json({ message: "Contact form submitted successfully" }, { status: 201 })
+    return NextResponse.json(
+      {
+        message: "Contact form submitted successfully",
+        contactId: result.insertedId,
+      },
+      { status: 201 },
+    );
   } catch (error) {
-    console.error("Contact form error:", error)
-    return NextResponse.json({ error: "Failed to submit contact form" }, { status: 500 })
+    console.error("Contact form error:", error);
+    return NextResponse.json(
+      { error: "Failed to submit contact form" },
+      { status: 500 },
+    );
   }
 }
