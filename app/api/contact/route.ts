@@ -1,9 +1,28 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { sendContactNotificationEmail } from "@/lib/email";
+import { checkRateLimit, getIdentifier } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    // Apply rate limiting: 2 requests per hour per IP
+    const identifier = getIdentifier(request);
+    const rateLimit = checkRateLimit(identifier, {
+      windowMs: 60 * 60 * 1000, // 1 hour
+      maxRequests: 2, // 2 requests max
+    });
+
+    if (!rateLimit.allowed) {
+      const resetDate = new Date(rateLimit.resetTime);
+      return NextResponse.json(
+        {
+          error: "Too many contact form submissions. Please try again later.",
+          resetTime: resetDate.toISOString(),
+        },
+        { status: 429 }, // Too Many Requests
+      );
+    }
+
     const body = await request.json();
     const { name, email, phone, subject, message } = body;
 
