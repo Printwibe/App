@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
 import { getCurrentUser } from "@/lib/auth";
 import type { Order, Cart, Product, CustomDesign } from "@/lib/types";
+import type { StoreSettings } from "@/app/api/v1/admin/settings/route";
 import { ObjectId } from "mongodb";
 import { put } from "@vercel/blob";
 import { Notifications } from "@/lib/models/notifications";
@@ -59,12 +60,12 @@ export async function POST(request: NextRequest) {
       if (!product) {
         return NextResponse.json(
           { error: `Product not found: ${item.productId}` },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
       const variant = product.variants.find(
-        (v) => v.size === item.variant.size && v.color === item.variant.color
+        (v) => v.size === item.variant.size && v.color === item.variant.color,
       );
 
       if (!variant) {
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
           {
             error: `Variant not found for ${product.name}: ${item.variant.size} - ${item.variant.color}`,
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
           {
             error: `Insufficient stock for ${product.name} (${item.variant.size} - ${item.variant.color}). Available: ${variant.stock}`,
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -92,13 +93,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Load store settings for shipping/tax configuration
+    const settings = await db.collection<StoreSettings>("settings").findOne({});
+
     // Calculate totals
     const subtotal = cart.items.reduce(
       (sum, item) =>
         sum + (item.unitPrice + item.customizationFee) * item.quantity,
-      0
+      0,
     );
-    const shipping = 0; // Free shipping
+    const shipping =
+      settings?.shippingCost !== undefined
+        ? Number(settings.shippingCost) || 0
+        : 0;
     const discountAmount = discount || 0;
     const total = subtotal + shipping - discountAmount;
 
@@ -120,7 +127,7 @@ export async function POST(request: NextRequest) {
       ) {
         const uploadedDesigns: Record<number, any> = {};
         const expectedViews = Object.keys(
-          item.customizationData.viewDesigns
+          item.customizationData.viewDesigns,
         ).length;
 
         // Create a map of design IDs to library items for quick lookup
@@ -128,12 +135,12 @@ export async function POST(request: NextRequest) {
           item.customizationData.designLibrary.map((design: any) => [
             design.id,
             design,
-          ])
+          ]),
         );
 
         // Process each view design
         for (const [viewIndex, viewDesign] of Object.entries(
-          item.customizationData.viewDesigns
+          item.customizationData.viewDesigns,
         ) as [string, any][]) {
           const libraryDesign = designMap.get(viewDesign.designId);
           if (!libraryDesign) continue;
@@ -152,7 +159,7 @@ export async function POST(request: NextRequest) {
             const timestamp = Date.now();
             const sanitizedFilename = libraryDesign.name.replace(
               /[^a-zA-Z0-9.-]/g,
-              "_"
+              "_",
             );
             const blobPath = `designs/${user._id}/orders/${orderId}/view-${viewIndex}/${timestamp}-${sanitizedFilename}`;
 
@@ -183,7 +190,7 @@ export async function POST(request: NextRequest) {
               } catch (previewError) {
                 console.error(
                   `Failed to upload preview for view ${viewIndex}:`,
-                  previewError
+                  previewError,
                 );
               }
             }
@@ -226,14 +233,14 @@ export async function POST(request: NextRequest) {
           } catch (uploadError) {
             console.error(
               `Failed to upload design for view ${viewIndex}:`,
-              uploadError
+              uploadError,
             );
             uploadFailures.push(
               `Item ${i + 1} - View ${parseInt(viewIndex) + 1}: ${
                 uploadError instanceof Error
                   ? uploadError.message
                   : "Upload failed"
-              }`
+              }`,
             );
           }
         }
@@ -244,7 +251,7 @@ export async function POST(request: NextRequest) {
           uploadFailures.push(
             `Item ${
               i + 1
-            }: Only ${uploadedCount} of ${expectedViews} designs uploaded successfully`
+            }: Only ${uploadedCount} of ${expectedViews} designs uploaded successfully`,
           );
         }
 
@@ -337,7 +344,7 @@ export async function POST(request: NextRequest) {
                 uploadError instanceof Error
                   ? uploadError.message
                   : "Upload failed"
-              }`
+              }`,
             );
           }
         }
@@ -354,7 +361,7 @@ export async function POST(request: NextRequest) {
           error: "Failed to upload custom designs. Please try again.",
           details: uploadFailures,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -390,38 +397,38 @@ export async function POST(request: NextRequest) {
                   notes: item.tempDesigns?.notes,
                 }
               : item.customDesigns
-              ? {
-                  front: item.customDesigns.frontDesignId
-                    ? {
-                        designId: item.customDesigns.frontDesignId,
-                        fileUrl: "", // Would be populated from design lookup
-                        fileName: "",
-                      }
-                    : undefined,
-                  back: item.customDesigns.backDesignId
-                    ? {
-                        designId: item.customDesigns.backDesignId,
-                        fileUrl: "", // Would be populated from design lookup
-                        fileName: "",
-                      }
-                    : undefined,
-                  wraparound: item.customDesigns.wraparoundDesignId
-                    ? {
-                        designId: item.customDesigns.wraparoundDesignId,
-                        fileUrl: "", // Would be populated from design lookup
-                        fileName: "",
-                      }
-                    : undefined,
-                  preview: item.customDesigns.previewDesignId
-                    ? {
-                        designId: item.customDesigns.previewDesignId,
-                        fileUrl: "", // Would be populated from design lookup
-                        fileName: "",
-                      }
-                    : undefined,
-                  notes: item.customDesigns.notes,
-                }
-              : undefined,
+                ? {
+                    front: item.customDesigns.frontDesignId
+                      ? {
+                          designId: item.customDesigns.frontDesignId,
+                          fileUrl: "", // Would be populated from design lookup
+                          fileName: "",
+                        }
+                      : undefined,
+                    back: item.customDesigns.backDesignId
+                      ? {
+                          designId: item.customDesigns.backDesignId,
+                          fileUrl: "", // Would be populated from design lookup
+                          fileName: "",
+                        }
+                      : undefined,
+                    wraparound: item.customDesigns.wraparoundDesignId
+                      ? {
+                          designId: item.customDesigns.wraparoundDesignId,
+                          fileUrl: "", // Would be populated from design lookup
+                          fileName: "",
+                        }
+                      : undefined,
+                    preview: item.customDesigns.previewDesignId
+                      ? {
+                          designId: item.customDesigns.previewDesignId,
+                          fileUrl: "", // Would be populated from design lookup
+                          fileName: "",
+                        }
+                      : undefined,
+                    notes: item.customDesigns.notes,
+                  }
+                : undefined,
           customizationNotes: uploadedDesigns?.notes,
           // Legacy support
           customDesign: item.customDesignId
@@ -496,7 +503,7 @@ export async function POST(request: NextRequest) {
         {
           $inc: { "variants.$.stock": -update.quantity },
           $set: { updatedAt: new Date() },
-        }
+        },
       );
     }
 
@@ -535,7 +542,7 @@ export async function POST(request: NextRequest) {
     console.error("Order creation error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -559,7 +566,7 @@ export async function GET() {
     console.error("Orders fetch error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
