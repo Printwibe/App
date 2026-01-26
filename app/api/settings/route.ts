@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server"
-import { getDatabase } from "@/lib/mongodb"
-import type { StoreSettings } from "../v1/admin/settings/route"
+import { NextResponse } from "next/server";
+import { getDatabase } from "@/lib/mongodb";
+import type { StoreSettings } from "../v1/admin/settings/route";
 
 /**
  * GET /api/settings
@@ -9,11 +9,11 @@ import type { StoreSettings } from "../v1/admin/settings/route"
  */
 export async function GET() {
   try {
-    const db = await getDatabase()
-    const settingsCollection = db.collection<StoreSettings>("settings")
+    const db = await getDatabase();
+    const settingsCollection = db.collection<StoreSettings>("settings");
 
     // Get settings
-    const settings = await settingsCollection.findOne({})
+    const settings = await settingsCollection.findOne({});
 
     if (!settings) {
       // Return default settings if none exist
@@ -28,15 +28,25 @@ export async function GET() {
           country: "United States",
           postalCode: "94105",
           businessHours: "Monday - Friday: 9:00 AM - 6:00 PM",
-          aboutUs: "PrintWibe is a leading print-on-demand platform offering custom merchandise.",
+          aboutUs:
+            "PrintWibe is a leading print-on-demand platform offering custom merchandise.",
           currency: "INR",
+          shippingCost: 0,
           paymentMethods: {
-            razorpay: { enabled: true, name: "Pay Online", description: "UPI, Credit/Debit Card, Net Banking & Wallets" },
-            cod: { enabled: true, name: "Cash on Delivery", description: "Pay with cash when your order is delivered" }
+            razorpay: {
+              enabled: true,
+              name: "Pay Online",
+              description: "UPI, Credit/Debit Card, Net Banking & Wallets",
+            },
+            cod: {
+              enabled: true,
+              name: "Cash on Delivery",
+              description: "Pay with cash when your order is delivered",
+            },
           },
           socialMedia: {},
         },
-      })
+      });
     }
 
     // Return only public settings (exclude admin email and sensitive data)
@@ -53,16 +63,28 @@ export async function GET() {
         businessHours: settings.businessHours,
         aboutUs: settings.aboutUs,
         currency: settings.currency,
+        shippingCost: settings.shippingCost ?? 0,
         paymentMethods: settings.paymentMethods || {
-          razorpay: { enabled: true, name: "Pay Online", description: "UPI, Credit/Debit Card, Net Banking & Wallets" },
-          cod: { enabled: true, name: "Cash on Delivery", description: "Pay with cash when your order is delivered" }
+          razorpay: {
+            enabled: true,
+            name: "Pay Online",
+            description: "UPI, Credit/Debit Card, Net Banking & Wallets",
+          },
+          cod: {
+            enabled: true,
+            name: "Cash on Delivery",
+            description: "Pay with cash when your order is delivered",
+          },
         },
         socialMedia: settings.socialMedia || {},
         policies: settings.policies || {},
       },
-    })
+    });
   } catch (error) {
-    console.error("Public settings fetch error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Public settings fetch error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

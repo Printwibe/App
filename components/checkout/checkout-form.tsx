@@ -86,12 +86,12 @@ export function CheckoutForm() {
   });
   const [paymentSettings, setPaymentSettings] = useState<any>(null);
   const [manualPaymentType, setManualPaymentType] = useState<"" | "upi" | "qr">(
-    ""
+    "",
   );
   const [transactionId, setTransactionId] = useState("");
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(
-    null
+    null,
   );
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
   const { symbol: currencySymbol } = useCurrency();
@@ -107,6 +107,7 @@ export function CheckoutForm() {
   });
   const [useNewAddress, setUseNewAddress] = useState(false);
   const [isSavingAddress, setIsSavingAddress] = useState(false);
+  const [shippingCost, setShippingCost] = useState(0);
 
   useEffect(() => {
     fetchCheckoutData();
@@ -151,7 +152,7 @@ export function CheckoutForm() {
           JSON.stringify({
             code: data.code,
             discount: data.discount,
-          })
+          }),
         );
       } else {
         // Promo is no longer valid, remove it
@@ -162,7 +163,7 @@ export function CheckoutForm() {
         setPromoMessage(
           `⚠ ${
             data.error || "Promo code no longer valid for current cart value"
-          }`
+          }`,
         );
         setTimeout(() => setPromoMessage(""), 5000);
       }
@@ -215,6 +216,9 @@ export function CheckoutForm() {
             setPaymentMethod("cod");
           }
         }
+        if (settingsData.settings?.shippingCost !== undefined) {
+          setShippingCost(Number(settingsData.settings.shippingCost) || 0);
+        }
       }
 
       // Fetch payment settings for manual payment options
@@ -239,9 +243,9 @@ export function CheckoutForm() {
     const subtotal = cartItems.reduce(
       (sum, item) =>
         sum + (item.unitPrice + item.customizationFee) * item.quantity,
-      0
+      0,
     );
-    const shipping = 0; // Free shipping
+    const shipping = shippingCost;
     const total = subtotal + shipping - discount;
     return { subtotal, shipping, total };
   };
@@ -273,14 +277,14 @@ export function CheckoutForm() {
           JSON.stringify({
             code: data.code,
             discount: data.discount,
-          })
+          }),
         );
         setPromoMessage(
           `✓ ${
             data.discount > 0
               ? `${currencySymbol}${data.discount.toFixed(2)} discount applied!`
               : "Code applied"
-          }`
+          }`,
         );
       } else {
         setDiscount(0);
@@ -792,7 +796,7 @@ export function CheckoutForm() {
                           value={phoneInput}
                           onChange={(e) =>
                             setPhoneInput(
-                              e.target.value.replace(/\D/g, "").slice(0, 10)
+                              e.target.value.replace(/\D/g, "").slice(0, 10),
                             )
                           }
                           placeholder="10-digit mobile number"
@@ -1252,7 +1256,7 @@ export function CheckoutForm() {
                                 variant="ghost"
                                 onClick={() => {
                                   navigator.clipboard.writeText(
-                                    paymentSettings.manualPayments.upi.upiId
+                                    paymentSettings.manualPayments.upi.upiId,
                                   );
                                   toast({
                                     title: "Copied!",
@@ -1485,7 +1489,17 @@ export function CheckoutForm() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Shipping</span>
-                  <span className="text-green-600 font-medium">Free</span>
+                  <span
+                    className={
+                      shipping > 0
+                        ? "font-medium"
+                        : "text-green-600 font-medium"
+                    }
+                  >
+                    {shipping > 0
+                      ? `${currencySymbol}${shipping.toFixed(2)}`
+                      : "Free"}
+                  </span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-sm">
